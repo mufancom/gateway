@@ -15,8 +15,10 @@
     "url": "https://www.mufan.com"
   },
   "files": [
-    "src",
+    "src/**/*.ts",
+    "!src/test",
     "bld",
+    "!bld/test",
     "!*.tsbuildinfo"
   ],
   "scripts": {
