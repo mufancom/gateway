@@ -21,6 +21,8 @@
     "!bld/test",
     "!*.tsbuildinfo"
   ],
+  "main": "bld/library/index.js",
+  "types": "bld/library/index.d.ts",
   "scripts": {
     "build": "rimraf bld && tsc --build tsconfig.json",
     "lint": "run-in-every eslint-project --echo --parallel -- eslint --config {configFileName} .",
