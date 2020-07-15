@@ -25,22 +25,22 @@ const gateway = new Gateway({
   targets: [
     {
       type: 'proxy',
-      match: '/app/api/',
+      match: '/app/api',
       base: 'http://localhost:8081',
     },
     {
       type: 'proxy',
-      match: '/app/',
+      match: '/app',
       base: 'http://localhost:8082',
     },
     {
       type: 'proxy',
-      match: '/api/',
+      match: '/api',
       base: 'http://localhost:8061',
     },
     {
       type: 'proxy',
-      match: '/',
+      match: '',
       base: 'http://localhost:8062',
     },
   ],
@@ -61,7 +61,7 @@ const gateway = new Gateway({
   targets: [
     {
       type: 'proxy',
-      match: '/app/api/',
+      match: '/app/api',
       base: 'http://makeflow-app-server:8081',
     },
     {
@@ -76,7 +76,7 @@ const gateway = new Gateway({
     },
     {
       type: 'proxy',
-      match: '/api/',
+      match: '/api',
       base: 'http://makeflow-community-site-server:8061',
     },
     {

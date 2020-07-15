@@ -50,10 +50,8 @@ const gateway = new Gateway({
   targets: [
     {
       type: 'proxy',
-      match: {
-        path: '/api',
-      },
-      target: `${TARGET_KOA_URL}/test`,
+      match: '/api/',
+      target: `${TARGET_KOA_URL}/test/`,
     },
     {
       type: 'file',
