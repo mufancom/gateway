@@ -9,7 +9,7 @@ const GATEWAY_TARGET_DESCRIPTOR_DEFAULT = {
 
 export interface IGatewayTargetDescriptor {
   type: string;
-  match:
+  match?:
     | string
     | RegExp
     | {
@@ -34,7 +34,7 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
   abstract handle(context: Context, next: Next, base: string): Promise<void>;
 
   match(context: Context): string | undefined {
-    let {match} = this.descriptor;
+    let {match = ''} = this.descriptor;
 
     if (typeof match === 'string' || match instanceof RegExp) {
       match = {
