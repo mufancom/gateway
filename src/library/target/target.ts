@@ -15,6 +15,7 @@ export interface IGatewayTargetDescriptor {
     | {
         path?: string | RegExp;
         headers?: Dict<string | RegExp | boolean>;
+        test?(context: Context): boolean;
       };
   session?: boolean;
 }
@@ -41,7 +42,7 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
       };
     }
 
-    let {path: pathPattern, headers: headerPatternDict} = match;
+    let {path: pathPattern, headers: headerPatternDict, test} = match;
 
     let base: string | undefined = '';
 
@@ -57,6 +58,10 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
       headerPatternDict &&
       !matchHeaders(context.headers, headerPatternDict)
     ) {
+      return undefined;
+    }
+
+    if (test && !test(context)) {
       return undefined;
     }
 
