@@ -7,15 +7,19 @@ const GATEWAY_TARGET_DESCRIPTOR_DEFAULT = {
   session: true,
 };
 
+export type GatewayTargetMatchFunction = (
+  context: Context,
+) => string | undefined;
+
 export interface IGatewayTargetDescriptor {
   type: string;
   match?:
     | string
     | RegExp
+    | GatewayTargetMatchFunction
     | {
         path?: string | RegExp;
         headers?: Dict<string | RegExp | boolean>;
-        test?(context: Context): boolean;
       };
   session?: boolean;
 }
@@ -42,7 +46,11 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
       };
     }
 
-    let {path: pathPattern, headers: headerPatternDict, test} = match;
+    if (typeof match === 'function') {
+      return match(context);
+    }
+
+    let {path: pathPattern, headers: headerPatternDict} = match;
 
     let base: string | undefined = '';
 
@@ -58,10 +66,6 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
       headerPatternDict &&
       !matchHeaders(context.headers, headerPatternDict)
     ) {
-      return undefined;
-    }
-
-    if (test && !test(context)) {
       return undefined;
     }
 
