@@ -1,3 +1,4 @@
+import assert from 'assert';
 import {Server} from 'http';
 import {ListenOptions} from 'net';
 
@@ -86,6 +87,8 @@ export class Gateway {
       let candidateBase = candidateTarget.match(context);
 
       if (typeof candidateBase === 'string') {
+        assert(context.url.startsWith(candidateBase));
+
         target = candidateTarget;
         base = candidateBase;
         break;

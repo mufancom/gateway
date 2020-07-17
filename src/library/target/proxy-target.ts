@@ -1,5 +1,4 @@
-import assert from 'assert';
-import {OutgoingMessage} from 'http';
+import {IncomingMessage, OutgoingMessage, Server as HTTPServer} from 'http';
 
 import Server, {ServerOptions, createProxyServer} from 'http-proxy';
 import {Context, Next} from 'koa';
@@ -17,6 +16,8 @@ export interface ProxyTargetDescriptor extends IGatewayTargetDescriptor {
 export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
   private proxy: Server;
 
+  private websocketUpgradeInitialized = false;
+
   constructor(descriptor: ProxyTargetDescriptor) {
     super(descriptor);
 
@@ -26,13 +27,13 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
   }
 
   async handle(context: Context, _next: Next, base: string): Promise<void> {
-    let {target} = this.descriptor;
+    let {options: {ws: websocketEnabled = false} = {}} = this.descriptor;
 
-    let url = context.url;
+    if (websocketEnabled) {
+      this.ensureWebsocketUpgrade(context);
+    }
 
-    assert(url.startsWith(base));
-
-    target = `${target}${url.slice(base.length)}`;
+    let target = this.buildTargetURL(context.url, base);
 
     let setCookieHeaders = context.response.headers['set-cookie'] as
       | string[]
@@ -77,6 +78,42 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
         reject,
       );
     });
+  }
+
+  private ensureWebsocketUpgrade(context: Context): void {
+    if (this.websocketUpgradeInitialized) {
+      return;
+    }
+
+    this.websocketUpgradeInitialized = true;
+
+    let server = (context.req.connection as any).server as HTTPServer;
+
+    server.on('upgrade', (req: IncomingMessage, socket, head) => {
+      let url = req.url!;
+
+      let base = this.match({
+        url,
+        path: url.match(/^[^?]*/)![0],
+        headers: req.headers,
+      });
+
+      if (base === undefined) {
+        return;
+      }
+
+      let target = this.buildTargetURL(url, base);
+
+      this.proxy.ws(req, socket, head, {
+        target,
+      });
+    });
+  }
+
+  private buildTargetURL(url: string, base: string): string {
+    let {target} = this.descriptor;
+
+    return `${target.replace('{base}', base)}${url.slice(base.length)}`;
   }
 }
 

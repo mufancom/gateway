@@ -1,3 +1,5 @@
+import {IncomingHttpHeaders} from 'http';
+
 import {Context, Next} from 'koa';
 import {Dict} from 'tslang';
 
@@ -7,18 +9,25 @@ const GATEWAY_TARGET_DESCRIPTOR_DEFAULT = {
   session: true,
 };
 
+export interface GatewayTargetMatchContext {
+  url: string;
+  path: string;
+  headers: IncomingHttpHeaders;
+}
+
 export type GatewayTargetMatchFunction = (
-  context: Context,
+  context: GatewayTargetMatchContext | Context,
 ) => string | undefined;
 
 export interface IGatewayTargetDescriptor {
   type: string;
   match?:
     | string
+    | string[]
     | RegExp
     | GatewayTargetMatchFunction
     | {
-        path?: string | RegExp;
+        path?: string | string[] | RegExp;
         headers?: Dict<string | RegExp | boolean>;
       };
   session?: boolean;
@@ -37,10 +46,14 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
 
   abstract handle(context: Context, next: Next, base: string): Promise<void>;
 
-  match(context: Context): string | undefined {
+  match(context: GatewayTargetMatchContext): string | undefined {
     let {match = ''} = this.descriptor;
 
-    if (typeof match === 'string' || match instanceof RegExp) {
+    if (
+      typeof match === 'string' ||
+      Array.isArray(match) ||
+      match instanceof RegExp
+    ) {
       match = {
         path: match,
       };
@@ -83,17 +96,30 @@ export type GatewayTargetConstructor<
   TDescriptor extends IGatewayTargetDescriptor
 > = new (descriptor: TDescriptor) => IGatewayTarget<TDescriptor>;
 
-function matchPath(path: string, pattern: string | RegExp): string | undefined {
+function matchPath(
+  path: string,
+  pattern: string | string[] | RegExp,
+): string | undefined {
   if (typeof pattern === 'string') {
-    // E.g. pattern '/app' matches both '/app' and '/app/workbench', not not
-    // '/app-workbench'.
-    let matched =
-      path.startsWith(pattern) &&
-      (path.length === pattern.length ||
-        pattern[pattern.length - 1] === '/' ||
-        path[pattern.length] === '/');
+    pattern = [pattern];
+  }
 
-    return matched ? pattern : undefined;
+  if (Array.isArray(pattern)) {
+    for (let stringPattern of pattern) {
+      // E.g. pattern '/app' matches both '/app' and '/app/workbench', not not
+      // '/app-workbench'.
+      let matched =
+        path.startsWith(stringPattern) &&
+        (path.length === stringPattern.length ||
+          stringPattern[stringPattern.length - 1] === '/' ||
+          path[stringPattern.length] === '/');
+
+      if (matched) {
+        return stringPattern;
+      }
+    }
+
+    return undefined;
   } else {
     let groups = pattern.exec(path);
     let base = groups ? groups[1] ?? groups[0] : undefined;
@@ -103,13 +129,11 @@ function matchPath(path: string, pattern: string | RegExp): string | undefined {
 }
 
 function matchHeaders(
-  headerDict: Dict<string | string[]>,
+  headers: IncomingHttpHeaders,
   headerPatternDict: Dict<string | RegExp | boolean>,
 ): boolean {
   for (let [name, valuePattern] of Object.entries(headerPatternDict)) {
-    let value = hasOwnProperty.call(headerDict, name)
-      ? headerDict[name]
-      : undefined;
+    let value = hasOwnProperty.call(headers, name) ? headers[name] : undefined;
 
     if (typeof valuePattern === 'boolean') {
       if (valuePattern ? value === undefined : value !== undefined) {
