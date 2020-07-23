@@ -52,6 +52,10 @@ export class StaticTarget extends AbstractGatewayTarget<
   }
 
   async handle(context: Context, next: Next, base: string): Promise<void> {
+    if (!base) {
+      base = '/';
+    }
+
     let baseToMountMap = this.baseToMountMap;
 
     let middleware = baseToMountMap.get(base);
