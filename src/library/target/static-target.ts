@@ -7,9 +7,11 @@ import {AbstractGatewayTarget, IGatewayTargetDescriptor} from './target';
 
 const STATIC_TARGET_DESCRIPTOR_DEFAULT = {
   session: false,
-  compress: true,
+  compress: {
+    br: false,
+  },
   static: {},
-};
+} as const;
 
 export interface StaticTargetDescriptor extends IGatewayTargetDescriptor {
   type: 'static';
@@ -37,7 +39,13 @@ export class StaticTarget extends AbstractGatewayTarget<
     let koa = this.koa;
 
     if (compressOptions) {
-      koa.use(Compress(compressOptions === true ? {} : compressOptions));
+      koa.use(
+        Compress(
+          compressOptions === true
+            ? STATIC_TARGET_DESCRIPTOR_DEFAULT.compress
+            : compressOptions,
+        ),
+      );
     }
 
     koa.use(Static(target, staticOptions));

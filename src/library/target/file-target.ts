@@ -8,9 +8,11 @@ import send, {SendOptions} from 'koa-send';
 import {AbstractGatewayTarget, IGatewayTargetDescriptor} from './target';
 
 const FILE_TARGET_DESCRIPTOR_DEFAULT = {
-  compress: true,
+  compress: {
+    br: false,
+  },
   send: {},
-};
+} as const;
 
 export interface FileTargetDescriptor extends IGatewayTargetDescriptor {
   type: 'file';
@@ -35,7 +37,11 @@ export class FileTarget extends AbstractGatewayTarget<FileTargetDescriptor> {
 
     if (compressOptions) {
       middlewareArray.push(
-        Compress(compressOptions === true ? {} : compressOptions),
+        Compress(
+          compressOptions === true
+            ? FILE_TARGET_DESCRIPTOR_DEFAULT.compress
+            : compressOptions,
+        ),
       );
     }
 
