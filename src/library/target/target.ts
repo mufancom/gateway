@@ -3,6 +3,8 @@ import {IncomingHttpHeaders} from 'http';
 import {Context, Next} from 'koa';
 import {Dict} from 'tslang';
 
+import {LogFunction} from '../log';
+
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 const GATEWAY_TARGET_DESCRIPTOR_DEFAULT = {
@@ -34,7 +36,10 @@ export interface IGatewayTargetDescriptor {
 }
 
 abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
-  constructor(readonly descriptor: TDescriptor) {}
+  constructor(
+    readonly descriptor: TDescriptor,
+    protected readonly log: LogFunction,
+  ) {}
 
   get sessionEnabled(): boolean {
     let {
@@ -94,7 +99,9 @@ export type IGatewayTarget<
 
 export type GatewayTargetConstructor<
   TDescriptor extends IGatewayTargetDescriptor
-> = new (descriptor: TDescriptor) => IGatewayTarget<TDescriptor>;
+> = new (descriptor: TDescriptor, log: LogFunction) => IGatewayTarget<
+  TDescriptor
+>;
 
 function matchPath(
   path: string,

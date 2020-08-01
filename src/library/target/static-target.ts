@@ -3,6 +3,8 @@ import Compress from 'koa-compress';
 import mount from 'koa-mount';
 import Static from 'koa-static';
 
+import {LogFunction} from '../log';
+
 import {AbstractGatewayTarget, IGatewayTargetDescriptor} from './target';
 
 const STATIC_TARGET_DESCRIPTOR_DEFAULT = {
@@ -27,8 +29,8 @@ export class StaticTarget extends AbstractGatewayTarget<
 
   private baseToMountMap = new Map<string, Middleware>();
 
-  constructor(descriptor: StaticTargetDescriptor) {
-    super(descriptor);
+  constructor(descriptor: StaticTargetDescriptor, log: LogFunction) {
+    super(descriptor, log);
 
     let {
       target,

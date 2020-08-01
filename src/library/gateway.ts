@@ -1,10 +1,12 @@
 import assert from 'assert';
+import {EventEmitter} from 'events';
 import {Server} from 'http';
 import {ListenOptions} from 'net';
 
 import Koa, {Context, Next} from 'koa';
 import Session from 'koa-session';
 
+import {LogFunction} from './log';
 import {
   GATEWAY_TARGET_CONSTRUCTOR_DICT,
   GatewayTargetDescriptor,
@@ -23,7 +25,7 @@ export interface GatewayOptions {
   targets: GatewayTargetDescriptor[];
 }
 
-export class Gateway {
+export class Gateway extends EventEmitter {
   private koa: Koa = new Koa();
 
   private sessionEnabled: boolean;
@@ -31,6 +33,8 @@ export class Gateway {
   private targets: IGatewayTarget<IGatewayTargetDescriptor>[] = [];
 
   constructor(private options: GatewayOptions) {
+    super();
+
     let {
       keys,
       session: sessionOptions = GATEWAY_OPTIONS_DEFAULT.session,
@@ -67,7 +71,7 @@ export class Gateway {
     for (let descriptor of targetDescriptors) {
       let Target = GATEWAY_TARGET_CONSTRUCTOR_DICT[descriptor.type];
 
-      targets.push(new Target(descriptor));
+      targets.push(new Target(descriptor, this.log));
     }
 
     koa.use(this.middleware);
@@ -78,6 +82,13 @@ export class Gateway {
 
     return this.koa.listen(listenOptions);
   }
+
+  protected log: LogFunction = (event, data) => {
+    this.emit('log', {
+      event,
+      ...data,
+    });
+  };
 
   private middleware = async (context: Context, next: Next): Promise<void> => {
     let target: IGatewayTarget<IGatewayTargetDescriptor> | undefined;
@@ -115,5 +126,17 @@ export class Gateway {
   };
 }
 
+export interface Gateway {
+  emit(event: 'log', data: LogEventData): boolean;
+
+  on(event: 'log', listener: (data: LogEventData) => void): this;
+}
+
 export interface GatewaySessionOptions
   extends Partial<Omit<Session.opts, 'autoCommit'>> {}
+
+export interface LogEventData {
+  /** The event that triggers this log. */
+  event: string;
+  [key: string]: unknown;
+}

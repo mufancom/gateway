@@ -5,6 +5,8 @@ import compose from 'koa-compose';
 import Compress from 'koa-compress';
 import send, {SendOptions} from 'koa-send';
 
+import {LogFunction} from '../log';
+
 import {AbstractGatewayTarget, IGatewayTargetDescriptor} from './target';
 
 const FILE_TARGET_DESCRIPTOR_DEFAULT = {
@@ -24,8 +26,8 @@ export interface FileTargetDescriptor extends IGatewayTargetDescriptor {
 export class FileTarget extends AbstractGatewayTarget<FileTargetDescriptor> {
   private middleware: Middleware;
 
-  constructor(descriptor: FileTargetDescriptor) {
-    super(descriptor);
+  constructor(descriptor: FileTargetDescriptor, log: LogFunction) {
+    super(descriptor, log);
 
     let {
       target,

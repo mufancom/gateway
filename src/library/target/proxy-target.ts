@@ -3,6 +3,8 @@ import {IncomingMessage, OutgoingMessage, Server as HTTPServer} from 'http';
 import Server, {ServerOptions, createProxyServer} from 'http-proxy';
 import {Context, Next} from 'koa';
 
+import {LogFunction} from '../log';
+
 import {AbstractGatewayTarget, IGatewayTargetDescriptor} from './target';
 
 const setHeader = OutgoingMessage.prototype.setHeader;
@@ -18,12 +20,14 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
 
   private websocketUpgradeInitialized = false;
 
-  constructor(descriptor: ProxyTargetDescriptor) {
-    super(descriptor);
+  constructor(descriptor: ProxyTargetDescriptor, log: LogFunction) {
+    super(descriptor, log);
 
     let {options} = descriptor;
 
     this.proxy = createProxyServer({...options, ignorePath: true});
+
+    this.proxy.on('error', error => this.log('proxy-server-error', {error}));
   }
 
   async handle(context: Context, _next: Next, base: string): Promise<void> {
