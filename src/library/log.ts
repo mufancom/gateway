@@ -1,1 +1,7 @@
-export type LogFunction = (event: string, data: object) => void;
+export type LogLevel = 'info' | 'warn' | 'error';
+
+export type LogFunction = (
+  level: LogLevel,
+  event: string,
+  data: object,
+) => void;

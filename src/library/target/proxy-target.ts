@@ -27,7 +27,9 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
 
     this.proxy = createProxyServer({...options, ignorePath: true});
 
-    this.proxy.on('error', error => this.log('proxy-server-error', {error}));
+    this.proxy.on('error', error =>
+      this.log('error', 'proxy-server-error', {error}),
+    );
   }
 
   async handle(context: Context, _next: Next, base: string): Promise<void> {

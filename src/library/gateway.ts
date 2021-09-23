@@ -83,8 +83,9 @@ export class Gateway extends EventEmitter {
     return this.koa.listen(listenOptions);
   }
 
-  protected log: LogFunction = (event, data) => {
+  protected log: LogFunction = (level, event, data) => {
     this.emit('log', {
+      level,
       event,
       ...data,
     });
@@ -136,6 +137,7 @@ export interface GatewaySessionOptions
   extends Partial<Omit<Session.opts, 'autoCommit'>> {}
 
 export interface LogEventData {
+  level: 'info' | 'warn' | 'error';
   /** The event that triggers this log. */
   event: string;
   [key: string]: unknown;
