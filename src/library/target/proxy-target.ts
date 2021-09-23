@@ -79,7 +79,14 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
           target,
           headers,
         },
-        reject,
+        error => {
+          if (error.code === 'ECONNRESET') {
+            req.socket.destroy();
+            resolve();
+          } else {
+            reject(error);
+          }
+        },
       );
     });
   }
