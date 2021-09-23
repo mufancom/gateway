@@ -1,3 +1,3 @@
 declare interface Error {
-  code?: string;
+  code?: string | number;
 }
