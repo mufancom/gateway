@@ -94,3 +94,7 @@ const gateway = new Gateway({
 
 gateway.serve();
 ```
+
+## License
+
+MIT License.

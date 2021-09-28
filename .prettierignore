@@ -1,4 +1,3 @@
-**/.bld-cache/**
-**/bld/**
-
-package.json
+# TypeScript Build Artifacts
+bld/
+.bld-cache/

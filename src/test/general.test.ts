@@ -30,8 +30,8 @@ targetKoa.use(context => {
       .split('; ')
       .map(text => text.match(/[^=]+/)![0]),
     session: {
-      prevHash: !!context.session._sessCtx.prevHash,
-      populated: context.session.populated,
+      prevHash: !!context.session!._sessCtx.prevHash,
+      populated: context.session!.populated,
     },
     url: context.url,
   };

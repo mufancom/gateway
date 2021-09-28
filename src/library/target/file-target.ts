@@ -2,7 +2,7 @@ import assert from 'assert';
 
 import {Context, Middleware, Next} from 'koa';
 import compose from 'koa-compose';
-import Compress from 'koa-compress';
+import compress, {CompressOptions} from 'koa-compress';
 import send, {SendOptions} from 'koa-send';
 
 import {LogFunction} from '../log';
@@ -19,7 +19,7 @@ const FILE_TARGET_DESCRIPTOR_DEFAULT = {
 export interface FileTargetDescriptor extends IGatewayTargetDescriptor {
   type: 'file';
   target: string;
-  compress?: Compress.CompressOptions | boolean;
+  compress?: CompressOptions | boolean;
   send?: SendOptions;
 }
 
@@ -39,7 +39,7 @@ export class FileTarget extends AbstractGatewayTarget<FileTargetDescriptor> {
 
     if (compressOptions) {
       middlewareArray.push(
-        Compress(
+        compress(
           compressOptions === true
             ? FILE_TARGET_DESCRIPTOR_DEFAULT.compress
             : compressOptions,

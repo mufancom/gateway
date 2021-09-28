@@ -42,9 +42,8 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
   ) {}
 
   get sessionEnabled(): boolean {
-    let {
-      session: sessionEnabled = GATEWAY_TARGET_DESCRIPTOR_DEFAULT.session,
-    } = this.descriptor;
+    let {session: sessionEnabled = GATEWAY_TARGET_DESCRIPTOR_DEFAULT.session} =
+      this.descriptor;
 
     return sessionEnabled;
   }
@@ -93,15 +92,15 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
 
 export const AbstractGatewayTarget = GatewayTarget;
 
-export type IGatewayTarget<
-  TDescriptor extends IGatewayTargetDescriptor
-> = GatewayTarget<TDescriptor>;
+export type IGatewayTarget<TDescriptor extends IGatewayTargetDescriptor> =
+  GatewayTarget<TDescriptor>;
 
 export type GatewayTargetConstructor<
-  TDescriptor extends IGatewayTargetDescriptor
-> = new (descriptor: TDescriptor, log: LogFunction) => IGatewayTarget<
-  TDescriptor
->;
+  TDescriptor extends IGatewayTargetDescriptor,
+> = new (
+  descriptor: TDescriptor,
+  log: LogFunction,
+) => IGatewayTarget<TDescriptor>;
 
 function matchPath(
   path: string,

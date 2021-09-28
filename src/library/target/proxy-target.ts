@@ -1,4 +1,4 @@
-import {IncomingMessage, OutgoingMessage, Server as HTTPServer} from 'http';
+import {IncomingMessage, Server as HTTPServer, ServerResponse} from 'http';
 
 import Server, {ServerOptions, createProxyServer} from 'http-proxy';
 import {Context, Next} from 'koa';
@@ -7,7 +7,7 @@ import {LogFunction} from '../log';
 
 import {AbstractGatewayTarget, IGatewayTargetDescriptor} from './target';
 
-const setHeader = OutgoingMessage.prototype.setHeader;
+const setHeader = ServerResponse.prototype.setHeader;
 
 export interface ProxyTargetDescriptor extends IGatewayTargetDescriptor {
   type: 'proxy';
@@ -131,10 +131,10 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
 }
 
 function setHeaderOverride(
-  this: OutgoingMessage,
+  this: ServerResponse,
   name: string,
   value: string | number | string[],
-): void {
+): ServerResponse {
   if (name.toLowerCase() === 'set-cookie') {
     let originalValue = this.getHeader('set-cookie');
 

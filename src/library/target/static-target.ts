@@ -22,9 +22,7 @@ export interface StaticTargetDescriptor extends IGatewayTargetDescriptor {
   static?: Static.Options;
 }
 
-export class StaticTarget extends AbstractGatewayTarget<
-  StaticTargetDescriptor
-> {
+export class StaticTarget extends AbstractGatewayTarget<StaticTargetDescriptor> {
   private koa = new Koa();
 
   private baseToMountMap = new Map<string, Middleware>();
@@ -54,9 +52,8 @@ export class StaticTarget extends AbstractGatewayTarget<
   }
 
   get sessionEnabled(): boolean {
-    let {
-      session: sessionEnabled = STATIC_TARGET_DESCRIPTOR_DEFAULT.session,
-    } = this.descriptor;
+    let {session: sessionEnabled = STATIC_TARGET_DESCRIPTOR_DEFAULT.session} =
+      this.descriptor;
 
     return sessionEnabled;
   }

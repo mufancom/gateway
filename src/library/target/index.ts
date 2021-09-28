@@ -10,9 +10,9 @@ export type GatewayTargetDescriptor =
   | StaticTargetDescriptor
   | FileTargetDescriptor;
 
-export const GATEWAY_TARGET_CONSTRUCTOR_DICT: Dict<GatewayTargetConstructor<
-  IGatewayTargetDescriptor
->> = {
+export const GATEWAY_TARGET_CONSTRUCTOR_DICT: Dict<
+  GatewayTargetConstructor<IGatewayTargetDescriptor>
+> = {
   proxy: ProxyTarget,
   static: StaticTarget,
   file: FileTarget,

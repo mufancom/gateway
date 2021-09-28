@@ -1,0 +1,17 @@
+{
+  "extends": "@mufan/code-boilerplates/typescript",
+  "options": {
+    "name": "@makeflow/gateway",
+    "license": "MIT",
+    "author": "Chengdu Mufan Technology Co., Ltd.",
+    "tsProjects": [
+      {
+        "name": "library"
+      },
+      {
+        "name": "test",
+        "references": ["library"]
+      }
+    ]
+  }
+}
