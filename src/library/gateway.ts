@@ -26,7 +26,7 @@ export interface GatewayOptions {
 }
 
 export class Gateway extends EventEmitter {
-  private koa: Koa = new Koa();
+  readonly koa: Koa = new Koa();
 
   private sessionEnabled: boolean;
 
