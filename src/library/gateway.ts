@@ -49,14 +49,33 @@ export class Gateway extends EventEmitter {
 
     if (sessionOptions) {
       this.sessionEnabled = true;
+
+      if (
+        typeof sessionOptions !== 'boolean' &&
+        typeof sessionOptions.secure === 'boolean'
+      ) {
+        let secure = sessionOptions.secure;
+
+        koa.use((context, next) => {
+          // Hack koa request so that it initiate cookies with secure option.
+          Object.defineProperty(context.request, 'secure', {
+            writable: false,
+            value: secure,
+          });
+
+          return next();
+        });
+      }
+
       koa.use(
         Session(
           {
             ...(sessionOptions === true ? undefined : sessionOptions),
-            // By calling `save()` it marked session force save on commit. However,
-            // it won't reset the force save state after `manuallyCommit()`. This will result in
-            // another auto commit that might cause error for proxy target (header
-            // already sent). So we disable `autoCommit` altogether.
+            // By calling `save()` it marked session force save on commit.
+            // However, it won't reset the force save state after
+            // `manuallyCommit()`. This will result in another auto commit that
+            // might cause error for proxy target (header already sent). So we
+            // disable `autoCommit` altogether.
             autoCommit: false,
           },
           koa,
