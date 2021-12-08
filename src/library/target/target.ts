@@ -1,6 +1,6 @@
 import {IncomingHttpHeaders} from 'http';
 
-import {Context, Next} from 'koa';
+import {Next} from 'koa';
 import {Dict} from 'tslang';
 
 import {LogFunction} from '../log';
@@ -18,20 +18,22 @@ export interface GatewayTargetMatchContext {
 }
 
 export type GatewayTargetMatchFunction = (
-  context: GatewayTargetMatchContext | Context,
+  context: GatewayTargetMatchContext,
 ) => string | undefined;
+
+export type GatewayTargetMatchPattern =
+  | string
+  | string[]
+  | RegExp
+  | GatewayTargetMatchFunction
+  | {
+      path?: string | string[] | RegExp;
+      headers?: Dict<string | RegExp | boolean>;
+    };
 
 export interface IGatewayTargetDescriptor {
   type: string;
-  match?:
-    | string
-    | string[]
-    | RegExp
-    | GatewayTargetMatchFunction
-    | {
-        path?: string | string[] | RegExp;
-        headers?: Dict<string | RegExp | boolean>;
-      };
+  match?: GatewayTargetMatchPattern;
   session?: boolean;
 }
 
@@ -48,45 +50,15 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
     return sessionEnabled;
   }
 
-  abstract handle(context: Context, next: Next, base: string): Promise<void>;
+  abstract handle(
+    context: GatewayTargetMatchContext,
+    next: Next,
+    base: string,
+  ): Promise<void>;
 
   match(context: GatewayTargetMatchContext): string | undefined {
-    let {match = ''} = this.descriptor;
-
-    if (
-      typeof match === 'string' ||
-      Array.isArray(match) ||
-      match instanceof RegExp
-    ) {
-      match = {
-        path: match,
-      };
-    }
-
-    if (typeof match === 'function') {
-      return match(context);
-    }
-
-    let {path: pathPattern, headers: headerPatternDict} = match;
-
-    let base: string | undefined = '';
-
-    if (pathPattern) {
-      base = matchPath(context.path, pathPattern);
-
-      if (base === undefined) {
-        return undefined;
-      }
-    }
-
-    if (
-      headerPatternDict &&
-      !matchHeaders(context.headers, headerPatternDict)
-    ) {
-      return undefined;
-    }
-
-    return base;
+    let {match} = this.descriptor;
+    return matchContext(context, match);
   }
 }
 
@@ -101,6 +73,43 @@ export type GatewayTargetConstructor<
   descriptor: TDescriptor,
   log: LogFunction,
 ) => IGatewayTarget<TDescriptor>;
+
+export function matchContext(
+  context: GatewayTargetMatchContext,
+  match: GatewayTargetMatchPattern = '',
+): string | undefined {
+  if (
+    typeof match === 'string' ||
+    Array.isArray(match) ||
+    match instanceof RegExp
+  ) {
+    match = {
+      path: match,
+    };
+  }
+
+  if (typeof match === 'function') {
+    return match(context);
+  }
+
+  let {path: pathPattern, headers: headerPatternDict} = match;
+
+  let base: string | undefined = '';
+
+  if (pathPattern) {
+    base = matchPath(context.path, pathPattern);
+
+    if (base === undefined) {
+      return undefined;
+    }
+  }
+
+  if (headerPatternDict && !matchHeaders(context.headers, headerPatternDict)) {
+    return undefined;
+  }
+
+  return base;
+}
 
 function matchPath(
   path: string,

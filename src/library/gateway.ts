@@ -20,7 +20,7 @@ const GATEWAY_OPTIONS_DEFAULT = {
 
 export interface GatewayOptions {
   keys?: string[];
-  listen: ListenOptions;
+  listen?: ListenOptions;
   session?: GatewaySessionOptions | boolean;
   targets: GatewayTargetDescriptor[];
 }
