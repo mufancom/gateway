@@ -18,13 +18,16 @@ export type GatewayTargetMatchFunction = (
   context: GatewayTargetMatchContext,
 ) => string | undefined;
 
-export type GatewayTargetMatchPattern =
+export type GatewayTargetMatchTextPattern =
   | string
-  | string[]
   | RegExp
+  | (string | RegExp)[];
+
+export type GatewayTargetMatchPattern =
+  | GatewayTargetMatchTextPattern
   | GatewayTargetMatchFunction
   | {
-      path?: string | string[] | RegExp;
+      path?: GatewayTargetMatchTextPattern;
       headers?: Dict<string | RegExp | boolean>;
     };
 
@@ -98,8 +101,8 @@ export function matchContext(
 ): string | undefined {
   if (
     typeof match === 'string' ||
-    Array.isArray(match) ||
-    match instanceof RegExp
+    match instanceof RegExp ||
+    Array.isArray(match)
   ) {
     match = {
       path: match,
@@ -131,34 +134,32 @@ export function matchContext(
 
 function matchPath(
   path: string,
-  pattern: string | string[] | RegExp,
+  pattern: GatewayTargetMatchTextPattern,
 ): string | undefined {
-  if (typeof pattern === 'string') {
-    pattern = [pattern];
-  }
+  const patterns = Array.isArray(pattern) ? pattern : [pattern];
 
-  if (Array.isArray(pattern)) {
-    for (const stringPattern of pattern) {
+  for (const pattern of patterns) {
+    if (typeof pattern === 'string') {
       // E.g. pattern '/app' matches both '/app' and '/app/workbench', not not
       // '/app-workbench'.
       const matched =
-        path.startsWith(stringPattern) &&
-        (path.length === stringPattern.length ||
-          stringPattern[stringPattern.length - 1] === '/' ||
-          path[stringPattern.length] === '/');
+        path.startsWith(pattern) &&
+        (path.length === pattern.length ||
+          pattern[pattern.length - 1] === '/' ||
+          path[pattern.length] === '/');
 
       if (matched) {
-        return stringPattern;
+        return pattern;
       }
+    } else {
+      const groups = pattern.exec(path);
+      const base = groups ? groups[1] ?? groups[0] : undefined;
+
+      return base !== undefined && path.startsWith(base) ? base : undefined;
     }
-
-    return undefined;
-  } else {
-    const groups = pattern.exec(path);
-    const base = groups ? groups[1] ?? groups[0] : undefined;
-
-    return base !== undefined && path.startsWith(base) ? base : undefined;
   }
+
+  return undefined;
 }
 
 function matchHeaders(
