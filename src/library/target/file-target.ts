@@ -1,14 +1,17 @@
 import assert from 'assert';
-import {Server} from 'http';
 
-import {Context, Middleware, Next} from 'koa';
+import type {Context, Middleware, Next} from 'koa';
 import compose from 'koa-compose';
-import compress, {CompressOptions} from 'koa-compress';
-import send, {SendOptions} from 'koa-send';
+import type {CompressOptions} from 'koa-compress';
+import Compress from 'koa-compress';
+import type {SendOptions} from 'koa-send';
+import send from 'koa-send';
 
-import {LogFunction} from '../log';
+import type {Gateway} from '../gateway';
+import type {LogFunction} from '../log';
 
-import {AbstractGatewayTarget, IGatewayTargetDescriptor} from './target';
+import type {IGatewayTargetDescriptor} from './target';
+import {AbstractGatewayTarget} from './target';
 
 const FILE_TARGET_DESCRIPTOR_DEFAULT = {
   compress: {
@@ -29,22 +32,22 @@ export class FileTarget extends AbstractGatewayTarget<FileTargetDescriptor> {
 
   constructor(
     descriptor: FileTargetDescriptor,
-    _server: Server,
+    gateway: Gateway,
     log: LogFunction,
   ) {
-    super(descriptor, log);
+    super(descriptor, gateway, log);
 
-    let {
+    const {
       target,
       compress: compressOptions = FILE_TARGET_DESCRIPTOR_DEFAULT.compress,
       send: sendOptions,
     } = descriptor;
 
-    let middlewareArray: Middleware[] = [];
+    const middlewareArray: Middleware[] = [];
 
     if (compressOptions) {
       middlewareArray.push(
-        compress(
+        Compress(
           compressOptions === true
             ? FILE_TARGET_DESCRIPTOR_DEFAULT.compress
             : compressOptions,
@@ -60,7 +63,7 @@ export class FileTarget extends AbstractGatewayTarget<FileTargetDescriptor> {
   }
 
   async handle(context: Context, next: Next): Promise<void> {
-    let middleware = this.middleware;
+    const middleware = this.middleware;
 
     await middleware(context, next);
   }

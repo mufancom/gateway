@@ -1,15 +1,12 @@
-import {IncomingHttpHeaders, Server} from 'http';
+import type {IncomingHttpHeaders} from 'http';
 
-import {Next} from 'koa';
-import {Dict} from 'tslang';
+import type {Next} from 'koa';
+import type {Dict} from 'tslang';
 
-import {LogFunction} from '../log';
+import type {Gateway} from '../gateway';
+import type {LogFunction} from '../log';
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
-
-const GATEWAY_TARGET_DESCRIPTOR_DEFAULT = {
-  session: true,
-};
 
 export interface GatewayTargetMatchContext {
   url: string;
@@ -37,17 +34,33 @@ export interface IGatewayTargetDescriptor {
   session?: boolean;
 }
 
+export interface GatewayTargetGenerics<
+  TDescriptor extends IGatewayTargetDescriptor = IGatewayTargetDescriptor,
+> {
+  TDescriptor: TDescriptor;
+}
+
 abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
+  declare TDescriptor: TDescriptor;
+
   constructor(
     readonly descriptor: TDescriptor,
+    readonly gateway: Gateway,
     protected readonly log: LogFunction,
   ) {}
 
   get sessionEnabled(): boolean {
-    let {session: sessionEnabled = GATEWAY_TARGET_DESCRIPTOR_DEFAULT.session} =
-      this.descriptor;
+    const {session: sessionEnabled} = this.descriptor;
 
-    return sessionEnabled;
+    if (this.gateway.sessionEnabled) {
+      return sessionEnabled ?? true;
+    } else {
+      if (sessionEnabled) {
+        throw new Error('Session is not enabled in gateway');
+      }
+
+      return false;
+    }
   }
 
   abstract handle(
@@ -57,7 +70,7 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
   ): Promise<void>;
 
   match(context: GatewayTargetMatchContext): string | undefined {
-    let {match} = this.descriptor;
+    const {match} = this.descriptor;
     return matchContext(context, match);
   }
 }
@@ -67,13 +80,17 @@ export const AbstractGatewayTarget = GatewayTarget;
 export type IGatewayTarget<TDescriptor extends IGatewayTargetDescriptor> =
   GatewayTarget<TDescriptor>;
 
-export type GatewayTargetConstructor<
-  TDescriptor extends IGatewayTargetDescriptor,
-> = new (
-  descriptor: TDescriptor,
-  server: Server,
-  log: LogFunction,
-) => IGatewayTarget<TDescriptor>;
+declare class GatewayTargetBivariance<
+  TTarget extends GatewayTargetGenerics,
+> extends GatewayTarget<TTarget['TDescriptor']> {
+  override handle(
+    context: GatewayTargetMatchContext,
+    next: Next,
+    base: string,
+  ): Promise<void>;
+}
+
+export type GatewayTargetConstructor = typeof GatewayTargetBivariance;
 
 export function matchContext(
   context: GatewayTargetMatchContext,
@@ -93,7 +110,7 @@ export function matchContext(
     return match(context);
   }
 
-  let {path: pathPattern, headers: headerPatternDict} = match;
+  const {path: pathPattern, headers: headerPatternDict} = match;
 
   let base: string | undefined = '';
 
@@ -121,10 +138,10 @@ function matchPath(
   }
 
   if (Array.isArray(pattern)) {
-    for (let stringPattern of pattern) {
+    for (const stringPattern of pattern) {
       // E.g. pattern '/app' matches both '/app' and '/app/workbench', not not
       // '/app-workbench'.
-      let matched =
+      const matched =
         path.startsWith(stringPattern) &&
         (path.length === stringPattern.length ||
           stringPattern[stringPattern.length - 1] === '/' ||
@@ -137,8 +154,8 @@ function matchPath(
 
     return undefined;
   } else {
-    let groups = pattern.exec(path);
-    let base = groups ? groups[1] ?? groups[0] : undefined;
+    const groups = pattern.exec(path);
+    const base = groups ? groups[1] ?? groups[0] : undefined;
 
     return base !== undefined && path.startsWith(base) ? base : undefined;
   }
@@ -148,7 +165,7 @@ function matchHeaders(
   headers: IncomingHttpHeaders,
   headerPatternDict: Dict<string | RegExp | boolean>,
 ): boolean {
-  for (let [name, valuePattern] of Object.entries(headerPatternDict)) {
+  for (const [name, valuePattern] of Object.entries(headerPatternDict)) {
     let value = hasOwnProperty.call(headers, name) ? headers[name] : undefined;
 
     if (typeof valuePattern === 'boolean') {

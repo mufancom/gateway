@@ -1,5 +1,5 @@
 import {Server} from 'http';
-import {AddressInfo} from 'net';
+import type {AddressInfo} from 'net';
 import * as Path from 'path';
 
 import Koa from 'koa';
@@ -68,6 +68,7 @@ beforeAll(async () => {
       },
       {
         type: 'static',
+        session: false,
         match: {
           path: '/',
           headers: {
@@ -94,14 +95,14 @@ beforeAll(async () => {
 });
 
 test('should access static index file and have session cookie set', async () => {
-  let response = await fetch(`${gatewayURL}/login`);
+  const response = await fetch(`${gatewayURL}/login`);
 
-  let setCookieHeader = response.headers.get('set-cookie');
+  const setCookieHeader = response.headers.get('set-cookie');
 
   expect(setCookieHeader).toMatch('koa.sess=');
   expect(setCookieHeader).toMatch('koa.sess.sig=');
 
-  let content = await response.text();
+  const content = await response.text();
 
   expect(content).toMatchInlineSnapshot(`
     "index html content
@@ -110,13 +111,14 @@ test('should access static index file and have session cookie set', async () => 
 });
 
 test('should access static file and have session cookie set', async () => {
-  let response = await fetch(`${gatewayURL}/foo.txt`);
+  const response = await fetch(`${gatewayURL}/foo.txt`);
 
-  let setCookieHeader = response.headers.get('set-cookie');
+  const setCookieHeader = response.headers.get('set-cookie');
 
-  expect(setCookieHeader).toBeFalsy();
+  expect(setCookieHeader).toMatch('koa.sess=');
+  expect(setCookieHeader).toMatch('koa.sess.sig=');
 
-  let content = await response.text();
+  const content = await response.text();
 
   expect(content).toMatchInlineSnapshot(`
     "foo text content
@@ -125,17 +127,17 @@ test('should access static file and have session cookie set', async () => {
 });
 
 test('should access googlebot static file and have session cookie set', async () => {
-  let response = await fetch(`${gatewayURL}/foo.txt`, {
+  const response = await fetch(`${gatewayURL}/foo.txt`, {
     headers: {
       'user-agent': 'Googlebot/1.0',
     },
   });
 
-  let setCookieHeader = response.headers.get('set-cookie');
+  const setCookieHeader = response.headers.get('set-cookie');
 
   expect(setCookieHeader).toBeFalsy();
 
-  let content = await response.text();
+  const content = await response.text();
 
   expect(content).toMatchInlineSnapshot(`
     "googlebot foo text content
@@ -144,14 +146,14 @@ test('should access googlebot static file and have session cookie set', async ()
 });
 
 test('should access api and get session cookie set', async () => {
-  let response = await fetch(`${gatewayURL}/api/echo?foo=bar`);
+  const response = await fetch(`${gatewayURL}/api/echo?foo=bar`);
 
-  let setCookieHeader = response.headers.get('set-cookie');
+  const setCookieHeader = response.headers.get('set-cookie');
 
   expect(setCookieHeader).toMatch('koa.sess=');
   expect(setCookieHeader).toMatch('koa.sess.sig=');
 
-  let result = await response.json();
+  const result = await response.json();
 
   expect(result).toMatchInlineSnapshot(`
     Object {
@@ -169,15 +171,15 @@ test('should access api and get session cookie set', async () => {
 });
 
 test('should access api and have additional cookie set', async () => {
-  let response = await fetch(`${gatewayURL}/api/set-cookie`);
+  const response = await fetch(`${gatewayURL}/api/set-cookie`);
 
-  let setCookieHeader = response.headers.get('set-cookie');
+  const setCookieHeader = response.headers.get('set-cookie');
 
   expect(setCookieHeader).toMatch('koa.sess=');
   expect(setCookieHeader).toMatch('koa.sess.sig=');
   expect(setCookieHeader).toMatch('foo=bar');
 
-  let result = await response.json();
+  const result = await response.json();
 
   expect(result).toMatchInlineSnapshot(`
     Object {

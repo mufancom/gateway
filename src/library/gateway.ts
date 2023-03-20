@@ -1,18 +1,19 @@
 import assert from 'assert';
 import {EventEmitter} from 'events';
 import {Server} from 'http';
-import {ListenOptions} from 'net';
+import type {ListenOptions} from 'net';
 
-import Koa, {Context, Next} from 'koa';
+import type {Context, Next} from 'koa';
+import Koa from 'koa';
 import Session from 'koa-session';
 
-import {LogFunction} from './log';
-import {
-  GATEWAY_TARGET_CONSTRUCTOR_DICT,
+import type {LogFunction} from './log';
+import type {
   GatewayTargetDescriptor,
   IGatewayTarget,
   IGatewayTargetDescriptor,
 } from './target';
+import {GATEWAY_TARGET_CONSTRUCTOR_DICT} from './target';
 
 const GATEWAY_OPTIONS_DEFAULT = {
   session: false,
@@ -30,20 +31,20 @@ export class Gateway extends EventEmitter {
 
   readonly server = new Server(this.koa.callback());
 
-  private sessionEnabled: boolean;
+  readonly sessionEnabled: boolean;
 
   private targets: IGatewayTarget<IGatewayTargetDescriptor>[] = [];
 
   constructor(private options: GatewayOptions) {
     super();
 
-    let {
+    const {
       keys,
       session: sessionOptions = GATEWAY_OPTIONS_DEFAULT.session,
       targets: targetDescriptors,
     } = options;
 
-    let koa = this.koa;
+    const koa = this.koa;
 
     if (keys) {
       koa.keys = keys;
@@ -56,7 +57,7 @@ export class Gateway extends EventEmitter {
         typeof sessionOptions !== 'boolean' &&
         typeof sessionOptions.secure === 'boolean'
       ) {
-        let secure = sessionOptions.secure;
+        const secure = sessionOptions.secure;
 
         koa.use((context, next) => {
           // Hack koa request so that it initiate cookies with secure option.
@@ -87,21 +88,19 @@ export class Gateway extends EventEmitter {
       this.sessionEnabled = false;
     }
 
-    let targets = this.targets;
-    let server = this.server;
-    let log = this.log;
+    const targets = this.targets;
+    const log = this.log;
 
-    for (let descriptor of targetDescriptors) {
-      let Target = GATEWAY_TARGET_CONSTRUCTOR_DICT[descriptor.type];
-
-      targets.push(new Target(descriptor, server, log));
+    for (const descriptor of targetDescriptors) {
+      const Target = GATEWAY_TARGET_CONSTRUCTOR_DICT[descriptor.type];
+      targets.push(new Target(descriptor, this, log));
     }
 
     koa.use(this.middleware);
   }
 
   serve(listeningListener?: () => void): Server {
-    let {listen: listenOptions} = this.options;
+    const {listen: listenOptions} = this.options;
 
     return this.server.listen(listenOptions, listeningListener);
   }
@@ -118,8 +117,8 @@ export class Gateway extends EventEmitter {
     let target: IGatewayTarget<IGatewayTargetDescriptor> | undefined;
     let base: string | undefined;
 
-    for (let candidateTarget of this.targets) {
-      let candidateBase = candidateTarget.match(context);
+    for (const candidateTarget of this.targets) {
+      const candidateBase = candidateTarget.match(context);
 
       if (typeof candidateBase === 'string') {
         assert(context.url.startsWith(candidateBase));
@@ -136,7 +135,7 @@ export class Gateway extends EventEmitter {
     }
 
     if (this.sessionEnabled && target.sessionEnabled) {
-      let session = context.session!;
+      const session = context.session!;
 
       if (!session._sessCtx.prevHash) {
         // If session has never been set.

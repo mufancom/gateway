@@ -1,5 +1,5 @@
 import {Server} from 'http';
-import {AddressInfo} from 'net';
+import type {AddressInfo} from 'net';
 import {PassThrough} from 'stream';
 
 import Koa from 'koa';
@@ -50,7 +50,7 @@ beforeAll(async () => {
 });
 
 test('should 200 for fixed length content', async () => {
-  let response = await fetch(gatewayURL, {
+  const response = await fetch(gatewayURL, {
     method: 'POST',
     body: Buffer.alloc(10),
   });
@@ -60,7 +60,7 @@ test('should 200 for fixed length content', async () => {
 });
 
 test('should 413 for fixed length content', async () => {
-  let response = await fetch(gatewayURL, {
+  const response = await fetch(gatewayURL, {
     method: 'POST',
     body: Buffer.alloc(2048),
   });
@@ -71,11 +71,11 @@ test('should 413 for fixed length content', async () => {
 });
 
 test('should 200 for stream', async () => {
-  let stream = new PassThrough();
+  const stream = new PassThrough();
 
   stream.write(Buffer.alloc(10));
 
-  let response = await fetch(gatewayURL, {
+  const response = await fetch(gatewayURL, {
     method: 'POST',
     body: stream,
   });
@@ -85,11 +85,11 @@ test('should 200 for stream', async () => {
 });
 
 test('should 413 for stream', async () => {
-  let stream = new PassThrough();
+  const stream = new PassThrough();
 
   stream.write(Buffer.alloc(2048));
 
-  let response = await fetch(gatewayURL, {
+  const response = await fetch(gatewayURL, {
     method: 'POST',
     body: stream,
   });

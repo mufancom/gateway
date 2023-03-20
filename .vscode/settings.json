@@ -19,11 +19,12 @@
     "typescriptreact"
   ],
   "cSpell.words": [
+    "Bivariance",
     "Googlebot",
-    "Mufan",
-    "Optionalize",
     "magicspace",
     "makeflow",
+    "Mufan",
+    "Optionalize",
     "tsbuildinfo",
     "tslang",
     "tslib"

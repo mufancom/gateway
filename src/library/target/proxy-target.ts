@@ -1,12 +1,17 @@
-import {IncomingMessage, Server as HTTPServer, ServerResponse} from 'http';
+import type {IncomingMessage} from 'http';
+import {ServerResponse} from 'http';
 import {PassThrough} from 'stream';
 
-import Server, {ServerOptions, createProxyServer} from 'http-proxy';
-import {Context, Next} from 'koa';
+import type {ServerOptions} from 'http-proxy';
+import type Server from 'http-proxy';
+import {createProxyServer} from 'http-proxy';
+import type {Context, Next} from 'koa';
 
-import {LogFunction} from '../log';
+import type {Gateway} from '../gateway';
+import type {LogFunction} from '../log';
 
-import {AbstractGatewayTarget, IGatewayTargetDescriptor} from './target';
+import type {IGatewayTargetDescriptor} from './target';
+import {AbstractGatewayTarget} from './target';
 
 const setHeader = ServerResponse.prototype.setHeader;
 
@@ -37,12 +42,12 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
 
   constructor(
     descriptor: ProxyTargetDescriptor,
-    private server: HTTPServer,
+    gateway: Gateway,
     log: LogFunction,
   ) {
-    super(descriptor, log);
+    super(descriptor, gateway, log);
 
-    let {
+    const {
       options: {
         ws = WEBSOCKET_ENABLED_DEFAULT,
         maxRequestSize = MAX_REQUEST_SIZE_DEFAULT,
@@ -72,7 +77,7 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
   async handle(context: Context, _next: Next, base: string): Promise<void> {
     const {url, request, response, req, res} = context;
 
-    let target = this.buildTargetURL(url, base);
+    const target = this.buildTargetURL(url, base);
 
     let setCookieHeaders = response.headers['set-cookie'] as
       | string[]
@@ -86,12 +91,12 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
         ? [setCookieHeaders]
         : setCookieHeaders;
 
-    let originalCookieHeader = request.headers['cookie'];
-    let newCookieHeader = setCookieHeaders
+    const originalCookieHeader = request.headers['cookie'];
+    const newCookieHeader = setCookieHeaders
       .map(header => header.match(/[^;]+/)![0])
       .join('; ');
 
-    let headers = newCookieHeader
+    const headers = newCookieHeader
       ? {
           cookie: originalCookieHeader
             ? `${originalCookieHeader}; ${newCookieHeader}`
@@ -103,10 +108,10 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
 
     let buffer: PassThrough | undefined;
 
-    let maxRequestSize = this.maxRequestSize;
+    const maxRequestSize = this.maxRequestSize;
 
     if (typeof maxRequestSize === 'number') {
-      let responseHeadersFallback = this.responseHeadersFallback;
+      const responseHeadersFallback = this.responseHeadersFallback;
 
       const contentLength = Number(request.headers['content-length']);
 
@@ -156,10 +161,10 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
   }
 
   private setupWebsocketUpgrade(): void {
-    this.server.on('upgrade', (req: IncomingMessage, socket, head) => {
-      let url = req.url!;
+    this.gateway.server.on('upgrade', (req: IncomingMessage, socket, head) => {
+      const url = req.url!;
 
-      let base = this.match({
+      const base = this.match({
         url,
         path: url.match(/^[^?]*/)![0],
         headers: req.headers,
@@ -169,7 +174,7 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
         return;
       }
 
-      let target = this.buildTargetURL(url, base);
+      const target = this.buildTargetURL(url, base);
 
       this.proxy.ws(req, socket, head, {
         target,
@@ -178,7 +183,7 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
   }
 
   private buildTargetURL(url: string, base: string): string {
-    let {target} = this.descriptor;
+    const {target} = this.descriptor;
 
     return `${target.replace('{base}', base)}${url.slice(base.length)}`;
   }
@@ -190,7 +195,7 @@ function setHeaderOverride(
   value: string | number | string[],
 ): ServerResponse {
   if (name.toLowerCase() === 'set-cookie') {
-    let originalValue = this.getHeader('set-cookie');
+    const originalValue = this.getHeader('set-cookie');
 
     if (Array.isArray(originalValue) && typeof value !== 'number') {
       value = [...originalValue, ...(Array.isArray(value) ? value : [value])];

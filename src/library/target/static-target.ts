@@ -1,16 +1,16 @@
-import {Server} from 'http';
-
-import Koa, {Context, Middleware, Next} from 'koa';
+import type {Context, Middleware, Next} from 'koa';
+import Koa from 'koa';
 import Compress from 'koa-compress';
 import mount from 'koa-mount';
 import Static from 'koa-static';
 
-import {LogFunction} from '../log';
+import type {Gateway} from '../gateway';
+import type {LogFunction} from '../log';
 
-import {AbstractGatewayTarget, IGatewayTargetDescriptor} from './target';
+import type {IGatewayTargetDescriptor} from './target';
+import {AbstractGatewayTarget} from './target';
 
 const STATIC_TARGET_DESCRIPTOR_DEFAULT = {
-  session: false,
   compress: {
     br: false,
   },
@@ -31,18 +31,18 @@ export class StaticTarget extends AbstractGatewayTarget<StaticTargetDescriptor> 
 
   constructor(
     descriptor: StaticTargetDescriptor,
-    _server: Server,
+    gateway: Gateway,
     log: LogFunction,
   ) {
-    super(descriptor, log);
+    super(descriptor, gateway, log);
 
-    let {
+    const {
       target,
       compress: compressOptions = STATIC_TARGET_DESCRIPTOR_DEFAULT.compress,
       static: staticOptions,
     } = descriptor;
 
-    let koa = this.koa;
+    const koa = this.koa;
 
     if (compressOptions) {
       koa.use(
@@ -57,19 +57,12 @@ export class StaticTarget extends AbstractGatewayTarget<StaticTargetDescriptor> 
     koa.use(Static(target, staticOptions));
   }
 
-  get sessionEnabled(): boolean {
-    let {session: sessionEnabled = STATIC_TARGET_DESCRIPTOR_DEFAULT.session} =
-      this.descriptor;
-
-    return sessionEnabled;
-  }
-
   async handle(context: Context, next: Next, base: string): Promise<void> {
     if (!base) {
       base = '/';
     }
 
-    let baseToMountMap = this.baseToMountMap;
+    const baseToMountMap = this.baseToMountMap;
 
     let middleware = baseToMountMap.get(base);
 
