@@ -7,18 +7,13 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "bld/library/index.js",
-  "types": "bld/library/index.d.ts",
-  "files": [
-    "src/**/*.ts",
-    "!src/test",
-    "bld",
-    "!bld/test",
-    "!*.tsbuildinfo"
-  ],
+  "exports": {
+    "types": "./bld/library/index.d.ts",
+    "require": "./bld/library/index.js"
+  },
   "scripts": {
     "build": "rimraf ./bld && tsc --build",
-    "lint": "eslint .",
+    "lint": "run-in-every eslint-project --parallel --echo -- eslint --config {configFileName} --no-error-on-unmatched-pattern .",
     "lint-prettier": "prettier --check .",
     "test": "yarn lint-prettier && yarn build && yarn lint && jest"
   },
@@ -40,19 +35,20 @@
     "koa-session": "^6.2.0",
     "koa-static": "^5.0.0",
     "tslang": "^0.1.23",
-    "tslib": "^2.3.1"
+    "tslib": "^2.5.0"
   },
   "devDependencies": {
-    "@mufan/code": "^0.2.9",
-    "@mufan/eslint-plugin": "^0.1.41",
+    "@mufan/code": "^0.2.16",
+    "@mufan/eslint-plugin": "^0.1.77",
     "@types/jest": "^27.0.2",
     "@types/node": "^16.10.1",
     "@types/node-fetch": "2",
-    "eslint": "^7.32.0",
+    "eslint": "^8.36.0",
     "jest": "^27.2.2",
     "node-fetch": "2",
-    "prettier": "^2.4.1",
-    "rimraf": "^3.0.2",
-    "typescript": "^4.4.3"
+    "prettier": "^2.8.5",
+    "rimraf": "^4.4.0",
+    "run-in-every": "^0.2.0",
+    "typescript": "^5.0.2"
   }
 }
