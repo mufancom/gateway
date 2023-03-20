@@ -1,3 +1,5 @@
+import {Server} from 'http';
+
 import Koa, {Context, Middleware, Next} from 'koa';
 import Compress from 'koa-compress';
 import mount from 'koa-mount';
@@ -27,7 +29,11 @@ export class StaticTarget extends AbstractGatewayTarget<StaticTargetDescriptor> 
 
   private baseToMountMap = new Map<string, Middleware>();
 
-  constructor(descriptor: StaticTargetDescriptor, log: LogFunction) {
+  constructor(
+    descriptor: StaticTargetDescriptor,
+    _server: Server,
+    log: LogFunction,
+  ) {
     super(descriptor, log);
 
     let {

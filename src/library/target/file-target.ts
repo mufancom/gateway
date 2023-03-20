@@ -1,4 +1,5 @@
 import assert from 'assert';
+import {Server} from 'http';
 
 import {Context, Middleware, Next} from 'koa';
 import compose from 'koa-compose';
@@ -26,7 +27,11 @@ export interface FileTargetDescriptor extends IGatewayTargetDescriptor {
 export class FileTarget extends AbstractGatewayTarget<FileTargetDescriptor> {
   private middleware: Middleware;
 
-  constructor(descriptor: FileTargetDescriptor, log: LogFunction) {
+  constructor(
+    descriptor: FileTargetDescriptor,
+    _server: Server,
+    log: LogFunction,
+  ) {
     super(descriptor, log);
 
     let {

@@ -1,4 +1,5 @@
 import {IncomingMessage, Server as HTTPServer, ServerResponse} from 'http';
+import {PassThrough} from 'stream';
 
 import Server, {ServerOptions, createProxyServer} from 'http-proxy';
 import {Context, Next} from 'koa';
@@ -9,39 +10,71 @@ import {AbstractGatewayTarget, IGatewayTargetDescriptor} from './target';
 
 const setHeader = ServerResponse.prototype.setHeader;
 
+const WEBSOCKET_ENABLED_DEFAULT = false;
+
+const MAX_REQUEST_SIZE_DEFAULT = 1 * 1024 ** 2; // 1MB
+
 export interface ProxyTargetDescriptor extends IGatewayTargetDescriptor {
   type: 'proxy';
   target: string;
-  options?: Omit<ServerOptions, 'target' | 'ignorePath'>;
+  options?: Omit<ServerOptions, 'target' | 'ignorePath'> & {
+    maxRequestSize?: number;
+    /**
+     * If request is responded by the gateway for some reason (currently if
+     * request exceeds `maxRequestSize`), the headers fallback will be used.
+     * This option can be used to handle CORS headers.
+     */
+    responseHeadersFallback?: Record<string, string>;
+  };
 }
 
 export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
   private proxy: Server;
 
-  private websocketUpgradeInitialized = false;
+  private maxRequestSize: number;
 
-  constructor(descriptor: ProxyTargetDescriptor, log: LogFunction) {
+  private responseHeadersFallback: Record<string, string> | undefined;
+
+  constructor(
+    descriptor: ProxyTargetDescriptor,
+    private server: HTTPServer,
+    log: LogFunction,
+  ) {
     super(descriptor, log);
 
-    let {options} = descriptor;
+    let {
+      options: {
+        ws = WEBSOCKET_ENABLED_DEFAULT,
+        maxRequestSize = MAX_REQUEST_SIZE_DEFAULT,
+        responseHeadersFallback,
+        ...options
+      } = {},
+    } = descriptor;
 
-    this.proxy = createProxyServer({...options, ignorePath: true});
+    this.maxRequestSize = maxRequestSize;
+    this.responseHeadersFallback = responseHeadersFallback;
+
+    this.proxy = createProxyServer({
+      ...options,
+      ws,
+      ignorePath: true,
+    });
 
     this.proxy.on('error', error =>
       this.log('error', 'proxy-server-error', {error}),
     );
+
+    if (ws) {
+      this.setupWebsocketUpgrade();
+    }
   }
 
   async handle(context: Context, _next: Next, base: string): Promise<void> {
-    let {options: {ws: websocketEnabled = false} = {}} = this.descriptor;
+    const {url, request, response, req, res} = context;
 
-    if (websocketEnabled) {
-      this.ensureWebsocketUpgrade(context);
-    }
+    let target = this.buildTargetURL(url, base);
 
-    let target = this.buildTargetURL(context.url, base);
-
-    let setCookieHeaders = context.response.headers['set-cookie'] as
+    let setCookieHeaders = response.headers['set-cookie'] as
       | string[]
       | string
       | undefined;
@@ -53,7 +86,7 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
         ? [setCookieHeaders]
         : setCookieHeaders;
 
-    let originalCookieHeader = context.request.headers['cookie'];
+    let originalCookieHeader = request.headers['cookie'];
     let newCookieHeader = setCookieHeaders
       .map(header => header.match(/[^;]+/)![0])
       .join('; ');
@@ -66,10 +99,38 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
         }
       : undefined;
 
-    let req = context.req;
-    let res = context.res;
-
     res.setHeader = setHeaderOverride;
+
+    let buffer: PassThrough | undefined;
+
+    let maxRequestSize = this.maxRequestSize;
+
+    if (typeof maxRequestSize === 'number') {
+      let responseHeadersFallback = this.responseHeadersFallback;
+
+      const contentLength = Number(request.headers['content-length']);
+
+      if (contentLength > maxRequestSize) {
+        res.writeHead(413, responseHeadersFallback).end();
+        return;
+      }
+
+      let buffered = 0;
+
+      buffer = new PassThrough();
+
+      buffer.on('data', (chunk: Buffer) => {
+        buffered += chunk.length;
+
+        if (buffered <= maxRequestSize) {
+          return;
+        }
+
+        res.writeHead(413, responseHeadersFallback).end();
+      });
+
+      req.pipe(buffer);
+    }
 
     return new Promise((resolve, reject) => {
       res.on('finish', resolve);
@@ -80,6 +141,7 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
         {
           target,
           headers,
+          buffer,
         },
         error => {
           if (error.code === 'ECONNRESET') {
@@ -93,16 +155,8 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
     });
   }
 
-  private ensureWebsocketUpgrade(context: Context): void {
-    if (this.websocketUpgradeInitialized) {
-      return;
-    }
-
-    this.websocketUpgradeInitialized = true;
-
-    let server = (context.req.connection as any).server as HTTPServer;
-
-    server.on('upgrade', (req: IncomingMessage, socket, head) => {
+  private setupWebsocketUpgrade(): void {
+    this.server.on('upgrade', (req: IncomingMessage, socket, head) => {
       let url = req.url!;
 
       let base = this.match({

@@ -15,7 +15,7 @@ import {
 } from './target';
 
 const GATEWAY_OPTIONS_DEFAULT = {
-  session: true,
+  session: false,
 };
 
 export interface GatewayOptions {
@@ -26,7 +26,9 @@ export interface GatewayOptions {
 }
 
 export class Gateway extends EventEmitter {
-  readonly koa: Koa = new Koa();
+  readonly koa = new Koa();
+
+  readonly server = new Server(this.koa.callback());
 
   private sessionEnabled: boolean;
 
@@ -86,20 +88,22 @@ export class Gateway extends EventEmitter {
     }
 
     let targets = this.targets;
+    let server = this.server;
+    let log = this.log;
 
     for (let descriptor of targetDescriptors) {
       let Target = GATEWAY_TARGET_CONSTRUCTOR_DICT[descriptor.type];
 
-      targets.push(new Target(descriptor, this.log));
+      targets.push(new Target(descriptor, server, log));
     }
 
     koa.use(this.middleware);
   }
 
-  serve(): Server {
+  serve(listeningListener?: () => void): Server {
     let {listen: listenOptions} = this.options;
 
-    return this.koa.listen(listenOptions);
+    return this.server.listen(listenOptions, listeningListener);
   }
 
   protected log: LogFunction = (level, event, data) => {

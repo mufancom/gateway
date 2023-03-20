@@ -1,4 +1,4 @@
-import {IncomingHttpHeaders} from 'http';
+import {IncomingHttpHeaders, Server} from 'http';
 
 import {Next} from 'koa';
 import {Dict} from 'tslang';
@@ -71,6 +71,7 @@ export type GatewayTargetConstructor<
   TDescriptor extends IGatewayTargetDescriptor,
 > = new (
   descriptor: TDescriptor,
+  server: Server,
   log: LogFunction,
 ) => IGatewayTarget<TDescriptor>;
 
