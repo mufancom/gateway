@@ -140,7 +140,7 @@ function matchPath(
 
   for (const pattern of patterns) {
     if (typeof pattern === 'string') {
-      // E.g. pattern '/app' matches both '/app' and '/app/workbench', not not
+      // E.g. pattern '/app' matches both '/app' and '/app/workbench', but not
       // '/app-workbench'.
       const matched =
         path.startsWith(pattern) &&
