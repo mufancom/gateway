@@ -1,27 +1,22 @@
 import type {IncomingMessage} from 'http';
-import {ServerResponse} from 'http';
 import {PassThrough} from 'stream';
 
+import type {NextFunction, Request, Response} from 'express';
 import type {ServerOptions} from 'http-proxy';
 import type Server from 'http-proxy';
 import {createProxyServer} from 'http-proxy';
-import type {Context, Next} from 'koa';
 
 import type {Gateway} from '../gateway';
 import type {LogFunction} from '../log';
-
-import type {IGatewayTargetDescriptor} from './target';
-import {AbstractGatewayTarget} from './target';
-
-const setHeader = ServerResponse.prototype.setHeader;
+import type {IGatewayTargetDescriptor} from '../target';
+import {AbstractGatewayTarget} from '../target';
 
 const WEBSOCKET_ENABLED_DEFAULT = false;
 
-const MAX_REQUEST_SIZE_DEFAULT = 1 * 1024 ** 2; // 1MB
+const MAX_REQUEST_SIZE_DEFAULT = undefined;
 
 export interface ProxyTargetDescriptor extends IGatewayTargetDescriptor {
   type: 'proxy';
-  target: string;
   options?: Omit<ServerOptions, 'target' | 'ignorePath'> & {
     maxRequestSize?: number;
     /**
@@ -36,7 +31,7 @@ export interface ProxyTargetDescriptor extends IGatewayTargetDescriptor {
 export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
   private proxy: Server;
 
-  private maxRequestSize: number;
+  private maxRequestSize: number | undefined;
 
   private responseHeadersFallback: Record<string, string> | undefined;
 
@@ -74,37 +69,13 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
     }
   }
 
-  async handle(context: Context, _next: Next, base: string): Promise<void> {
-    const {url, request, response, req, res} = context;
-
-    const target = this.buildTargetURL(url, base);
-
-    let setCookieHeaders = response.headers['set-cookie'] as
-      | string[]
-      | string
-      | undefined;
-
-    setCookieHeaders =
-      setCookieHeaders === undefined
-        ? []
-        : typeof setCookieHeaders === 'string'
-        ? [setCookieHeaders]
-        : setCookieHeaders;
-
-    const originalCookieHeader = request.headers['cookie'];
-    const newCookieHeader = setCookieHeaders
-      .map(header => header.match(/[^;]+/)![0])
-      .join('; ');
-
-    const headers = newCookieHeader
-      ? {
-          cookie: originalCookieHeader
-            ? `${originalCookieHeader}; ${newCookieHeader}`
-            : newCookieHeader,
-        }
-      : undefined;
-
-    res.setHeader = setHeaderOverride;
+  async handle(
+    request: Request,
+    response: Response,
+    _next: NextFunction,
+    target: string,
+  ): Promise<void> {
+    const [, query] = parseURL(request.url!);
 
     let buffer: PassThrough | undefined;
 
@@ -116,7 +87,7 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
       const contentLength = Number(request.headers['content-length']);
 
       if (contentLength > maxRequestSize) {
-        res.writeHead(413, responseHeadersFallback).end();
+        response.writeHead(413, responseHeadersFallback).end();
         return;
       }
 
@@ -131,26 +102,25 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
           return;
         }
 
-        res.writeHead(413, responseHeadersFallback).end();
+        response.writeHead(413, responseHeadersFallback).end();
       });
 
-      req.pipe(buffer);
+      request.pipe(buffer);
     }
 
     return new Promise((resolve, reject) => {
-      res.on('finish', resolve);
+      response.on('finish', resolve);
 
       this.proxy.web(
-        req,
-        res,
+        request,
+        response,
         {
-          target,
-          headers,
+          target: target + query,
           buffer,
         },
         error => {
           if (error.code === 'ECONNRESET') {
-            req.socket.destroy();
+            request.socket.destroy();
             resolve();
           } else {
             reject(error);
@@ -161,46 +131,32 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
   }
 
   private setupWebsocketUpgrade(): void {
-    this.gateway.server.on('upgrade', (req: IncomingMessage, socket, head) => {
-      const url = req.url!;
+    this.gateway.server.on(
+      'upgrade',
+      (request: IncomingMessage, socket, head) => {
+        const [path, query] = parseURL(request.url!);
 
-      const base = this.match({
-        url,
-        path: url.match(/^[^?]*/)![0],
-        headers: req.headers,
-      });
+        const match = this.match({
+          path,
+          headers: request.headers,
+        });
 
-      if (base === undefined) {
-        return;
-      }
+        if (match === undefined) {
+          return;
+        }
 
-      const target = this.buildTargetURL(url, base);
+        const target = this.buildTargetPath(match) + query;
 
-      this.proxy.ws(req, socket, head, {
-        target,
-      });
-    });
-  }
-
-  private buildTargetURL(url: string, base: string): string {
-    const {target} = this.descriptor;
-
-    return `${target.replace('{base}', base)}${url.slice(base.length)}`;
+        this.proxy.ws(request, socket, head, {
+          target,
+        });
+      },
+    );
   }
 }
 
-function setHeaderOverride(
-  this: ServerResponse,
-  name: string,
-  value: string | number | string[],
-): ServerResponse {
-  if (name.toLowerCase() === 'set-cookie') {
-    const originalValue = this.getHeader('set-cookie');
+function parseURL(url: string): [path: string, query: string] {
+  const [, path, query] = url.match(/^([^?]*)((?:\?.*)?)$/)!;
 
-    if (Array.isArray(originalValue) && typeof value !== 'number') {
-      value = [...originalValue, ...(Array.isArray(value) ? value : [value])];
-    }
-  }
-
-  return setHeader.call(this, name, value);
+  return [path, query];
 }

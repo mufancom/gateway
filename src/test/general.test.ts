@@ -2,87 +2,61 @@ import {Server} from 'http';
 import type {AddressInfo} from 'net';
 import * as Path from 'path';
 
-import Koa from 'koa';
-import Session from 'koa-session';
+import Express from 'express';
 import fetch from 'node-fetch';
 
 import {Gateway, createIndexFileFallbackMatchPathRegex} from '../library';
 
-const KOA_KEYS = ['some secrets'];
-
 let gatewayURL!: string;
 
 beforeAll(async () => {
-  const targetKoa = new Koa();
+  const targetApp = Express();
 
-  targetKoa.keys = KOA_KEYS;
-
-  targetKoa.use(Session(targetKoa));
-
-  targetKoa.use(context => {
-    if (context.path === '/test/set-cookie') {
-      context.cookies.set('foo', 'bar');
-    }
-
-    context.body = {
-      cookies: (context.request.headers['cookie'] as string)
-        .split('; ')
-        .map(text => text.match(/[^=]+/)![0]),
-      session: {
-        prevHash: !!context.session!._sessCtx.prevHash,
-        populated: context.session!.populated,
-      },
-      url: context.url,
-    };
+  targetApp.use((request, response) => {
+    response.json({
+      url: request.url,
+    });
   });
 
-  const targetServer = new Server(targetKoa.callback());
+  const targetServer = new Server(targetApp);
 
   targetServer.listen();
 
-  const targetKoaURL = `http://localhost:${
+  const targetURL = `http://localhost:${
     (targetServer.address() as AddressInfo).port
   }`;
 
   const gateway = new Gateway({
-    keys: KOA_KEYS,
     listen: {
       port: 0,
-    },
-    session: {
-      rolling: true,
     },
     targets: [
       {
         type: 'proxy',
         match: '/api/',
-        target: `${targetKoaURL}/test/`,
+        target: `${targetURL}/test/{path}`,
       },
       {
         type: 'file',
         match: createIndexFileFallbackMatchPathRegex(),
         target: Path.join(__dirname, '../../test/static/index.html'),
-        send: {
-          root: '/',
-        },
       },
       {
-        type: 'static',
-        session: false,
+        type: 'file',
         match: {
           path: '/',
           headers: {
             'user-agent': /Googlebot/,
           },
         },
-        target: Path.join(__dirname, '../../test/static-googlebot'),
+        target: Path.join(__dirname, '../../test/static-googlebot/{path}'),
       },
       {
-        type: 'static',
+        type: 'file',
         match: {
           path: '/',
         },
-        target: Path.join(__dirname, '../../test/static'),
+        target: Path.join(__dirname, '../../test/static/{path}'),
       },
     ],
   });
@@ -94,13 +68,8 @@ beforeAll(async () => {
   }`;
 });
 
-test('should access static index file and have session cookie set', async () => {
+test('should access static index file', async () => {
   const response = await fetch(`${gatewayURL}/login`);
-
-  const setCookieHeader = response.headers.get('set-cookie');
-
-  expect(setCookieHeader).toMatch('koa.sess=');
-  expect(setCookieHeader).toMatch('koa.sess.sig=');
 
   const content = await response.text();
 
@@ -110,13 +79,8 @@ test('should access static index file and have session cookie set', async () => 
   `);
 });
 
-test('should access static file and have session cookie set', async () => {
+test('should access static file', async () => {
   const response = await fetch(`${gatewayURL}/foo.txt`);
-
-  const setCookieHeader = response.headers.get('set-cookie');
-
-  expect(setCookieHeader).toMatch('koa.sess=');
-  expect(setCookieHeader).toMatch('koa.sess.sig=');
 
   const content = await response.text();
 
@@ -126,16 +90,12 @@ test('should access static file and have session cookie set', async () => {
   `);
 });
 
-test('should access googlebot static file and have session cookie set', async () => {
+test('should access googlebot static file', async () => {
   const response = await fetch(`${gatewayURL}/foo.txt`, {
     headers: {
       'user-agent': 'Googlebot/1.0',
     },
   });
-
-  const setCookieHeader = response.headers.get('set-cookie');
-
-  expect(setCookieHeader).toBeFalsy();
 
   const content = await response.text();
 
@@ -145,53 +105,14 @@ test('should access googlebot static file and have session cookie set', async ()
   `);
 });
 
-test('should access api and get session cookie set', async () => {
+test('should access api', async () => {
   const response = await fetch(`${gatewayURL}/api/echo?foo=bar`);
 
-  const setCookieHeader = response.headers.get('set-cookie');
-
-  expect(setCookieHeader).toMatch('koa.sess=');
-  expect(setCookieHeader).toMatch('koa.sess.sig=');
-
   const result = await response.json();
 
   expect(result).toMatchInlineSnapshot(`
     Object {
-      "cookies": Array [
-        "koa.sess",
-        "koa.sess.sig",
-      ],
-      "session": Object {
-        "populated": false,
-        "prevHash": true,
-      },
       "url": "/test/echo?foo=bar",
-    }
-  `);
-});
-
-test('should access api and have additional cookie set', async () => {
-  const response = await fetch(`${gatewayURL}/api/set-cookie`);
-
-  const setCookieHeader = response.headers.get('set-cookie');
-
-  expect(setCookieHeader).toMatch('koa.sess=');
-  expect(setCookieHeader).toMatch('koa.sess.sig=');
-  expect(setCookieHeader).toMatch('foo=bar');
-
-  const result = await response.json();
-
-  expect(result).toMatchInlineSnapshot(`
-    Object {
-      "cookies": Array [
-        "koa.sess",
-        "koa.sess.sig",
-      ],
-      "session": Object {
-        "populated": false,
-        "prevHash": true,
-      },
-      "url": "/test/set-cookie",
     }
   `);
 });

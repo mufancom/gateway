@@ -1,22 +1,16 @@
 import type {IncomingHttpHeaders} from 'http';
 
-import type {Next} from 'koa';
+import type {NextFunction, Request, Response} from 'express';
 import type {Dict} from 'tslang';
 
-import type {Gateway} from '../gateway';
-import type {LogFunction} from '../log';
+import type {Gateway} from './gateway';
+import type {LogFunction} from './log';
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
-export interface GatewayTargetMatchContext {
-  url: string;
-  path: string;
-  headers: IncomingHttpHeaders;
-}
-
 export type GatewayTargetMatchFunction = (
-  context: GatewayTargetMatchContext,
-) => string | undefined;
+  context: MatchRequestContext,
+) => GatewayTargetMatchResult | undefined;
 
 export type GatewayTargetMatchTextPattern =
   | string
@@ -34,7 +28,7 @@ export type GatewayTargetMatchPattern =
 export interface IGatewayTargetDescriptor {
   type: string;
   match?: GatewayTargetMatchPattern;
-  session?: boolean;
+  target: string;
 }
 
 export interface GatewayTargetGenerics<
@@ -52,29 +46,22 @@ abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
     protected readonly log: LogFunction,
   ) {}
 
-  get sessionEnabled(): boolean {
-    const {session: sessionEnabled} = this.descriptor;
-
-    if (this.gateway.sessionEnabled) {
-      return sessionEnabled ?? true;
-    } else {
-      if (sessionEnabled) {
-        throw new Error('Session is not enabled in gateway');
-      }
-
-      return false;
-    }
-  }
-
   abstract handle(
-    context: GatewayTargetMatchContext,
-    next: Next,
-    base: string,
+    request: Request,
+    response: Response,
+    next: NextFunction,
+    target: string,
   ): Promise<void>;
 
-  match(context: GatewayTargetMatchContext): string | undefined {
+  match(request: MatchRequestContext): GatewayTargetMatchResult | undefined {
     const {match} = this.descriptor;
-    return matchContext(context, match);
+    return matchRequest(request, match);
+  }
+
+  buildTargetPath({base, path}: GatewayTargetMatchResult): string {
+    const {target} = this.descriptor;
+
+    return target.replace('{base}', base).replace('{path}', path);
   }
 }
 
@@ -83,22 +70,33 @@ export const AbstractGatewayTarget = GatewayTarget;
 export type IGatewayTarget<TDescriptor extends IGatewayTargetDescriptor> =
   GatewayTarget<TDescriptor>;
 
+export interface GatewayTargetMatchResult {
+  base: string;
+  path: string;
+}
+
 declare class GatewayTargetBivariance<
   TTarget extends GatewayTargetGenerics,
 > extends GatewayTarget<TTarget['TDescriptor']> {
   override handle(
-    context: GatewayTargetMatchContext,
-    next: Next,
-    base: string,
+    request: Request,
+    response: Response,
+    next: NextFunction,
+    target: string,
   ): Promise<void>;
 }
 
 export type GatewayTargetConstructor = typeof GatewayTargetBivariance;
 
-export function matchContext(
-  context: GatewayTargetMatchContext,
+export interface MatchRequestContext {
+  path: string;
+  headers: IncomingHttpHeaders;
+}
+
+export function matchRequest(
+  context: MatchRequestContext,
   match: GatewayTargetMatchPattern = '',
-): string | undefined {
+): GatewayTargetMatchResult | undefined {
   if (
     typeof match === 'string' ||
     match instanceof RegExp ||
@@ -115,27 +113,29 @@ export function matchContext(
 
   const {path: pathPattern, headers: headerPatternDict} = match;
 
-  let base: string | undefined = '';
+  const {path, headers} = context;
+
+  let result: GatewayTargetMatchResult | undefined;
 
   if (pathPattern) {
-    base = matchPath(context.path, pathPattern);
+    result = matchPath(path, pathPattern);
 
-    if (base === undefined) {
+    if (!result) {
       return undefined;
     }
   }
 
-  if (headerPatternDict && !matchHeaders(context.headers, headerPatternDict)) {
+  if (headerPatternDict && !matchHeaders(headers, headerPatternDict)) {
     return undefined;
   }
 
-  return base;
+  return result ?? {base: '', path};
 }
 
 function matchPath(
   path: string,
   pattern: GatewayTargetMatchTextPattern,
-): string | undefined {
+): GatewayTargetMatchResult | undefined {
   const patterns = Array.isArray(pattern) ? pattern : [pattern];
 
   for (const pattern of patterns) {
@@ -149,13 +149,21 @@ function matchPath(
           path[pattern.length] === '/');
 
       if (matched) {
-        return pattern;
+        return {
+          base: pattern,
+          path: path.slice(pattern.length),
+        };
       }
     } else {
       const groups = pattern.exec(path);
       const base = groups ? groups[1] ?? groups[0] : undefined;
 
-      return base !== undefined && path.startsWith(base) ? base : undefined;
+      if (typeof base === 'string' && path.startsWith(base)) {
+        return {
+          base,
+          path: path.slice(base.length),
+        };
+      }
     }
   }
 

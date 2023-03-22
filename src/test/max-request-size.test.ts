@@ -2,7 +2,7 @@ import {Server} from 'http';
 import type {AddressInfo} from 'net';
 import {PassThrough} from 'stream';
 
-import Koa from 'koa';
+import Express from 'express';
 import fetch from 'node-fetch';
 
 import {Gateway} from '../library';
@@ -10,17 +10,17 @@ import {Gateway} from '../library';
 let gatewayURL!: string;
 
 beforeAll(async () => {
-  const targetKoa = new Koa();
+  const targetApp = Express();
 
-  targetKoa.use(context => {
-    context.body = 'ok';
+  targetApp.use((_request, response) => {
+    response.end('ok');
   });
 
-  const targetServer = new Server(targetKoa.callback());
+  const targetServer = new Server(targetApp);
 
   targetServer.listen();
 
-  const targetKoaURL = `http://localhost:${
+  const targetURL = `http://localhost:${
     (targetServer.address() as AddressInfo).port
   }`;
 
@@ -31,7 +31,7 @@ beforeAll(async () => {
     targets: [
       {
         type: 'proxy',
-        target: targetKoaURL,
+        target: targetURL,
         options: {
           maxRequestSize: 1024,
           responseHeadersFallback: {
