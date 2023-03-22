@@ -12,82 +12,70 @@ import {
 
 // development
 
-const KOA_KEYS = ['dev'];
-
 const gateway = new Gateway({
-  keys: KOA_KEYS,
   listen: {
     port: 8080,
-  },
-  session: {
-    rolling: true,
   },
   targets: [
     {
       type: 'proxy',
       match: '/app/api',
-      base: 'http://localhost:8081',
+      target: 'http://localhost:8081{path}',
     },
     {
       type: 'proxy',
       match: '/app',
-      base: 'http://localhost:8082',
+      target: 'http://localhost:8082{path}',
     },
     {
       type: 'proxy',
       match: '/api',
-      base: 'http://localhost:8061',
+      target: 'http://localhost:8061{path}',
     },
     {
       type: 'proxy',
       match: '',
-      base: 'http://localhost:8062',
+      target: 'http://localhost:8062{path}',
     },
   ],
 });
 
 // production
 
-const KOA_KEYS = ['some secrets'];
-
 const gateway = new Gateway({
-  keys: KOA_KEYS,
   listen: {
     port: 8080,
-  },
-  session: {
-    rolling: true,
   },
   targets: [
     {
       type: 'proxy',
       match: '/app/api',
-      base: 'http://makeflow-app-server:8081',
+      target: 'http://makeflow-app-server:8081{path}',
     },
     {
       type: 'file',
       match: createIndexFileFallbackMatchPathRegex('/app'),
-      base: Path.join(__dirname, '../../static/app/index.html'),
+      target: Path.join(__dirname, '../../static/app/index.html'),
     },
     {
-      type: 'static',
-      match: '/app/',
-      base: Path.join(__dirname, '../../static/app'),
+      type: 'file',
+      match: '/app',
+      target: Path.join(__dirname, '../../static/app{path}'),
     },
     {
       type: 'proxy',
       match: '/api',
-      base: 'http://makeflow-community-site-server:8061',
+      target: 'http://makeflow-community-site-server:8061{path}',
     },
     {
       type: 'file',
       match: createIndexFileFallbackMatchPathRegex(),
-      base: Path.join(__dirname, '../../static/site/index.html'),
+      target: Path.join(__dirname, '../../static/site/index.html'),
     },
     {
-      type: 'static',
-      match: '/',
-      base: Path.join(__dirname, '../../static/site'),
+      type: 'file',
+      match: '',
+      target: Path.join(__dirname, '../../static/site{path}'),
     },
   ],
 });
