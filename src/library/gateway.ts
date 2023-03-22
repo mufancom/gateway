@@ -2,8 +2,10 @@ import {EventEmitter} from 'events';
 import {Server} from 'http';
 import type {ListenOptions} from 'net';
 
-import type {Handler} from 'express';
+import type {Handler, Request, Response} from 'express';
 import Express from 'express';
+import type {Options as MorganOptions} from 'morgan';
+import Morgan from 'morgan';
 
 import type {LogFunction} from './log';
 import type {
@@ -16,6 +18,9 @@ import {GATEWAY_TARGET_CONSTRUCTOR_DICT} from './targets';
 
 export interface GatewayOptions {
   listen?: ListenOptions;
+  morgan?:
+    | boolean
+    | {format: string; options: MorganOptions<Request, Response>};
   targets: GatewayTargetDescriptor[];
 }
 
@@ -29,16 +34,24 @@ export class Gateway extends EventEmitter {
   constructor(private options: GatewayOptions) {
     super();
 
-    const {targets: targetDescriptors} = options;
+    const {morgan = false, targets: targetDescriptors} = options;
 
     const {app, targets, log} = this;
+
+    if (morgan) {
+      if (typeof morgan === 'object') {
+        app.use(Morgan(morgan.format, morgan.options));
+      } else {
+        app.use(Morgan('combined'));
+      }
+    }
+
+    app.use(this.middleware);
 
     for (const descriptor of targetDescriptors) {
       const Target = GATEWAY_TARGET_CONSTRUCTOR_DICT[descriptor.type];
       targets.push(new Target(descriptor, this, log));
     }
-
-    app.use(this.middleware);
   }
 
   serve(listeningListener?: () => void): Server {
