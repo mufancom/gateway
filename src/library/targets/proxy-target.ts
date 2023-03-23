@@ -1,5 +1,6 @@
 import type {IncomingMessage} from 'http';
 import {PassThrough} from 'stream';
+import {URL} from 'url';
 
 import type {NextFunction, Request, Response} from 'express';
 import type {ServerOptions} from 'http-proxy';
@@ -156,7 +157,6 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
 }
 
 function parseURL(url: string): [path: string, query: string] {
-  const [, path, query] = url.match(/^([^?]*)((?:\?.*)?)$/)!;
-
-  return [path, query];
+  const {pathname, search} = new URL(url, 'protocol://hostname');
+  return [pathname, search];
 }
