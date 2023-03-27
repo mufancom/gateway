@@ -120,11 +120,17 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
           buffer,
         },
         error => {
-          if (error.code === 'ECONNRESET') {
-            request.socket.destroy();
-            resolve();
-          } else {
-            reject(error);
+          switch (error.code) {
+            case 'ECONNREFUSED':
+              response.writeHead(502, this.responseHeadersFallback).end();
+              resolve();
+              break;
+            case 'ECONNRESET':
+              request.socket.destroy();
+              resolve();
+              break;
+            default:
+              reject(error);
           }
         },
       );
