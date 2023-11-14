@@ -1,11 +1,16 @@
 import {Server} from 'http';
 import type {AddressInfo} from 'net';
 import * as Path from 'path';
+import {fileURLToPath} from 'url';
 
 import Express from 'express';
-import fetch from 'node-fetch';
 
-import {Gateway, createIndexFileFallbackMatchPathRegex} from '../library';
+import {
+  Gateway,
+  createIndexFileFallbackMatchPathRegex,
+} from '../library/index.js';
+
+const __dirname = Path.dirname(fileURLToPath(import.meta.url));
 
 let gatewayURL!: string;
 
@@ -111,8 +116,8 @@ test('should access api', async () => {
   const result = await response.json();
 
   expect(result).toMatchInlineSnapshot(`
-    Object {
-      "url": "/test/echo?foo=bar",
-    }
-  `);
+{
+  "url": "/test/echo?foo=bar",
+}
+`);
 });

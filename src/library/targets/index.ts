@@ -1,11 +1,11 @@
 import type {Dict} from 'tslang';
 
-import type {GatewayTargetConstructor} from '../target';
+import type {GatewayTargetConstructor} from '../target.js';
 
-import type {FileTargetDescriptor} from './file-target';
-import {FileTarget} from './file-target';
-import type {ProxyTargetDescriptor} from './proxy-target';
-import {ProxyTarget} from './proxy-target';
+import type {FileTargetDescriptor} from './file-target.js';
+import {FileTarget} from './file-target.js';
+import type {ProxyTargetDescriptor} from './proxy-target.js';
+import {ProxyTarget} from './proxy-target.js';
 
 export type GatewayTargetDescriptor =
   | ProxyTargetDescriptor
@@ -16,5 +16,5 @@ export const GATEWAY_TARGET_CONSTRUCTOR_DICT: Dict<GatewayTargetConstructor> = {
   file: FileTarget,
 };
 
-export * from './proxy-target';
-export * from './file-target';
+export * from './file-target.js';
+export * from './proxy-target.js';

@@ -7,22 +7,22 @@ import Express from 'express';
 import type {Options as MorganOptions} from 'morgan';
 import Morgan from 'morgan';
 
-import type {LogFunction} from './log';
+import type {LogFunction} from './log.js';
 import type {
   GatewayTargetMatchResult,
   IGatewayTarget,
   IGatewayTargetDescriptor,
-} from './target';
-import type {GatewayTargetDescriptor} from './targets';
-import {GATEWAY_TARGET_CONSTRUCTOR_DICT} from './targets';
+} from './target.js';
+import type {GatewayTargetDescriptor} from './targets/index.js';
+import {GATEWAY_TARGET_CONSTRUCTOR_DICT} from './targets/index.js';
 
-export interface GatewayOptions {
+export type GatewayOptions = {
   listen?: ListenOptions;
   morgan?:
     | boolean
     | {format: string; options: MorganOptions<Request, Response>};
   targets: GatewayTargetDescriptor[];
-}
+};
 
 export class Gateway extends EventEmitter {
   readonly app = Express();
@@ -100,15 +100,16 @@ export class Gateway extends EventEmitter {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface Gateway {
   emit(event: 'log', data: LogEventData): boolean;
 
   on(event: 'log', listener: (data: LogEventData) => void): this;
 }
 
-export interface LogEventData {
+export type LogEventData = {
   level: 'info' | 'warn' | 'error';
   /** The event that triggers this log. */
   event: string;
   [key: string]: unknown;
-}
+};

@@ -3,9 +3,8 @@ import type {AddressInfo} from 'net';
 import {PassThrough} from 'stream';
 
 import Express from 'express';
-import fetch from 'node-fetch';
 
-import {Gateway} from '../library';
+import {Gateway} from '../library/index.js';
 
 let gatewayURL!: string;
 
@@ -78,6 +77,7 @@ test('should 200 for stream', async () => {
   const response = await fetch(gatewayURL, {
     method: 'POST',
     body: stream,
+    duplex: 'half',
   });
 
   expect(response.status).toEqual(200);
@@ -92,6 +92,7 @@ test('should 413 for stream', async () => {
   const response = await fetch(gatewayURL, {
     method: 'POST',
     body: stream,
+    duplex: 'half',
   });
 
   expect(response.status).toEqual(413);

@@ -1,8 +1,10 @@
-module.exports = {
+/** @type {import('jest').Config} */
+export default {
+  transform: {},
+  testMatch: ['<rootDir>/bld/test/*.test.js'],
   clearMocks: true,
   coverageDirectory: 'coverage',
   coverageProvider: 'v8',
-  testEnvironment: 'node',
-  testMatch: ['**/bld/test/*.test.js'],
   forceExit: true,
+  prettierPath: null,
 };

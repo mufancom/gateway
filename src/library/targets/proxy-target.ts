@@ -5,18 +5,18 @@ import {URL} from 'url';
 import type {NextFunction, Request, Response} from 'express';
 import type {ServerOptions} from 'http-proxy';
 import type Server from 'http-proxy';
-import {createProxyServer} from 'http-proxy';
+import HTTPProxy from 'http-proxy';
 
-import type {Gateway} from '../gateway';
-import type {LogFunction} from '../log';
-import type {IGatewayTargetDescriptor} from '../target';
-import {AbstractGatewayTarget} from '../target';
+import type {Gateway} from '../gateway.js';
+import type {LogFunction} from '../log.js';
+import type {IGatewayTargetDescriptor} from '../target.js';
+import {AbstractGatewayTarget} from '../target.js';
 
 const WEBSOCKET_ENABLED_DEFAULT = false;
 
 const MAX_REQUEST_SIZE_DEFAULT = undefined;
 
-export interface ProxyTargetDescriptor extends IGatewayTargetDescriptor {
+export type ProxyTargetDescriptor = {
   type: 'proxy';
   options?: Omit<ServerOptions, 'target' | 'ignorePath'> & {
     maxRequestSize?: number;
@@ -27,7 +27,7 @@ export interface ProxyTargetDescriptor extends IGatewayTargetDescriptor {
      */
     responseHeadersFallback?: Record<string, string>;
   };
-}
+} & IGatewayTargetDescriptor;
 
 export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
   private proxy: Server;
@@ -55,7 +55,7 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
     this.maxRequestSize = maxRequestSize;
     this.responseHeadersFallback = responseHeadersFallback;
 
-    this.proxy = createProxyServer({
+    this.proxy = HTTPProxy.createProxyServer({
       ...options,
       ws,
       ignorePath: true,
@@ -120,7 +120,7 @@ export class ProxyTarget extends AbstractGatewayTarget<ProxyTargetDescriptor> {
           buffer,
         },
         error => {
-          switch (error.code) {
+          switch ('code' in error ? error.code : undefined) {
             case 'ECONNREFUSED':
               response.writeHead(502, this.responseHeadersFallback).end();
               resolve();

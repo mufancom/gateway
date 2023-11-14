@@ -3,8 +3,8 @@ import type {IncomingHttpHeaders} from 'http';
 import type {NextFunction, Request, Response} from 'express';
 import type {Dict} from 'tslang';
 
-import type {Gateway} from './gateway';
-import type {LogFunction} from './log';
+import type {Gateway} from './gateway.js';
+import type {LogFunction} from './log.js';
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -25,17 +25,17 @@ export type GatewayTargetMatchPattern =
       headers?: Dict<string | RegExp | boolean>;
     };
 
-export interface IGatewayTargetDescriptor {
+export type IGatewayTargetDescriptor = {
   type: string;
   match?: GatewayTargetMatchPattern;
   target: string;
-}
+};
 
-export interface GatewayTargetGenerics<
+export type GatewayTargetGenerics<
   TDescriptor extends IGatewayTargetDescriptor = IGatewayTargetDescriptor,
-> {
+> = {
   TDescriptor: TDescriptor;
-}
+};
 
 abstract class GatewayTarget<TDescriptor extends IGatewayTargetDescriptor> {
   declare TDescriptor: TDescriptor;
@@ -70,10 +70,10 @@ export const AbstractGatewayTarget = GatewayTarget;
 export type IGatewayTarget<TDescriptor extends IGatewayTargetDescriptor> =
   GatewayTarget<TDescriptor>;
 
-export interface GatewayTargetMatchResult {
+export type GatewayTargetMatchResult = {
   base: string;
   path: string;
-}
+};
 
 declare class GatewayTargetBivariance<
   TTarget extends GatewayTargetGenerics,
@@ -88,10 +88,10 @@ declare class GatewayTargetBivariance<
 
 export type GatewayTargetConstructor = typeof GatewayTargetBivariance;
 
-export interface MatchRequestContext {
+export type MatchRequestContext = {
   path: string;
   headers: IncomingHttpHeaders;
-}
+};
 
 export function matchRequest(
   context: MatchRequestContext,
